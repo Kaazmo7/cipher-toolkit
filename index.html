@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cipher-toolkit</title>
+<meta name="description" content="Caesar/ROT, Vigenère, Base64, hex, binary, and Morse — plus a one-click Caesar brute force for CTFs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0c12;
+  --surface: #12141d;
+  --surface-2: #181b26;
+  --border: #262b3a;
+  --border-soft: #1c2030;
+  --text: #e7e9f2;
+  --text-muted: #9096ab;
+  --text-dim: #5b6178;
+  --accent: #4ade80;
+  --accent-soft: rgba(74,222,128, 0.14);
+  --accent-border: rgba(74,222,128, 0.35);
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #fb7185;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px 32px;
+  line-height: 1.55;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 800px 500px at 15% -10%, var(--accent-soft), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 100% 10%, rgba(255,255,255,0.02), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 760px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+header.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.kicker a { color: var(--text-dim); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.kicker a:hover { color: var(--accent); border-color: var(--accent); }
+
+h1 {
+  font-family: var(--mono);
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+h1 .bracket { color: var(--accent); }
+
+.tagline {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 62ch;
+  text-wrap: balance;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card h2 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card h2::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+label {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+input[type="text"], input[type="password"], input[type="number"], textarea, select {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color .15s ease;
+}
+
+textarea { resize: vertical; min-height: 90px; }
+
+input:focus, textarea:focus, select:focus, button:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 140px; }
+
+button {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+
+button:hover { background: var(--accent-border); }
+button:active { transform: scale(0.98); }
+
+button.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+button.ghost:hover { border-color: var(--text-muted); color: var(--text); background: var(--surface-2); }
+
+.output-field {
+  position: relative;
+}
+
+.output-field .copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.mono-out {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: var(--text);
+  min-height: 20px;
+}
+
+.field-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.field-label-row label { margin-bottom: 0; }
+
+.hash-row { display: flex; flex-direction: column; gap: 4px; }
+.hash-row .algo { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.pill.good { color: var(--good); border-color: rgba(74,222,128,0.35); background: rgba(74,222,128,0.08); }
+.pill.warn { color: var(--warn); border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.08); }
+.pill.bad { color: var(--bad); border-color: rgba(251,113,133,0.35); background: rgba(251,113,133,0.08); }
+
+.banner {
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  display: none;
+}
+.banner.show { display: block; }
+.banner.warn { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.35); color: var(--warn); }
+.banner.bad { background: rgba(251,113,133,0.08); border-color: rgba(251,113,133,0.35); color: var(--bad); }
+
+table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border-soft); }
+th { color: var(--text-dim); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: .06em; }
+tbody tr:hover { background: var(--surface-2); }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.slider-val { font-family: var(--mono); color: var(--accent); min-width: 2.5em; text-align: right; }
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.bar-fill { height: 100%; border-radius: 999px; transition: width .2s ease, background .2s ease; }
+
+.overflow-x { overflow-x: auto; }
+
+.mono { font-family: var(--mono); }
+
+.copy-inline {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.copy-inline:hover { color: var(--accent); background: var(--surface-2); }
+
+footer.page-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 4px;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-top: 12px;
+  text-align: center;
+}
+footer.page-foot a { color: var(--text-muted); text-decoration: none; }
+footer.page-foot a:hover { color: var(--accent); }
+footer.page-foot .dot { color: var(--border); margin: 0 2px; }
+footer.page-foot .home { color: var(--accent); }
+
+.hint { font-size: 12px; color: var(--text-dim); }
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page-head">
+    <div class="kicker">part of a small toolkit &middot; <a href="https://m4tthew.org">m4tthew.org</a></div>
+    <h1><span class="bracket">&gt;</span> cipher-toolkit</h1>
+    <p class="tagline">Caesar, Vigenère, Base64, Morse</p>
+  </header>
+
+  
+<div class="card">
+  <h2>Convert</h2>
+  <div class="row">
+    <div><label for="ct-cipher">Cipher</label>
+      <select id="ct-cipher">
+        <option value="caesar">Caesar / ROT-N</option>
+        <option value="vigenere">Vigenère</option>
+        <option value="base64">Base64</option>
+        <option value="hex">Hex</option>
+        <option value="binary">Binary</option>
+        <option value="morse">Morse code</option>
+      </select>
+    </div>
+    <div><label for="ct-mode">Mode</label>
+      <select id="ct-mode"><option value="encode">Encode</option><option value="decode">Decode</option></select>
+    </div>
+    <div id="ct-key-wrap"><label for="ct-key" id="ct-key-label">Shift</label><input type="text" id="ct-key" value="13" autocomplete="off" spellcheck="false"></div>
+  </div>
+  <label for="ct-input">Input</label>
+  <textarea id="ct-input" spellcheck="false">The quick brown fox jumps over the lazy dog</textarea>
+  <div class="output-field">
+    <div class="field-label-row"><label>Output</label><button class="copy-inline" data-copy-target="ct-output">copy</button></div>
+    <div class="mono-out" id="ct-output"></div>
+  </div>
+  <div id="ct-error" class="banner bad"></div>
+</div>
+<div class="card">
+  <h2>Caesar brute force</h2>
+  <label for="ct-bf-input">Ciphertext</label>
+  <textarea id="ct-bf-input" spellcheck="false">Wkh txlfn eurzq ira</textarea>
+  <div class="overflow-x"><table><tbody id="ct-bf-body"></tbody></table></div>
+</div>
+
+
+  <footer class="page-foot">
+    <a href="https://github.com/Kaazmo7/cidr-calc">cidr-calc</a><span class="dot">&middot;</span><a href="https://github.com/Kaazmo7/hashkit">hashkit</a><span class="dot">&middot;</span><a href="https://github.com/Kaazmo7/jwt-inspector">jwt-inspector</a><span class="dot">&middot;</span><a href="https://github.com/Kaazmo7/passphrase-lab">passphrase-lab</a>
+    <span class="dot">&middot;</span>
+    <a class="home" href="https://m4tthew.org">m4tthew.org</a>
+  </footer>
+</div>
+<script>
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-copy-target]');
+  if (!btn) return;
+  const el = document.getElementById(btn.getAttribute('data-copy-target'));
+  if (!el) return;
+  const text = el.value !== undefined ? el.value : el.textContent;
+  navigator.clipboard.writeText(text).then(function () {
+    const original = btn.textContent;
+    btn.textContent = 'copied';
+    setTimeout(function () { btn.textContent = original; }, 1200);
+  }).catch(function () {});
+});
+
+
+
+function caesarShift(text, shift) {
+  shift = ((shift % 26) + 26) % 26;
+  return text.replace(/[a-zA-Z]/g, ch => {
+    const base = ch <= 'Z' ? 65 : 97;
+    return String.fromCharCode((ch.charCodeAt(0) - base + shift) % 26 + base);
+  });
+}
+function vigenere(text, key, decode) {
+  key = key.replace(/[^a-zA-Z]/g, '').toLowerCase();
+  if (!key) throw new Error('key must contain letters');
+  let ki = 0;
+  return text.replace(/[a-zA-Z]/g, ch => {
+    const base = ch <= 'Z' ? 65 : 97;
+    const k = key.charCodeAt(ki % key.length) - 97;
+    ki++;
+    const shift = decode ? -k : k;
+    return String.fromCharCode(((ch.charCodeAt(0) - base + shift) % 26 + 26) % 26 + base);
+  });
+}
+function hexEncode(text) { return Array.from(new TextEncoder().encode(text)).map(b => b.toString(16).padStart(2, '0')).join(' '); }
+function hexDecode(text) {
+  const clean = text.replace(/\s+/g, '');
+  if (!/^[0-9a-fA-F]*$/.test(clean) || clean.length % 2) throw new Error('not valid hex');
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+  return new TextDecoder().decode(bytes);
+}
+function binEncode(text) { return Array.from(new TextEncoder().encode(text)).map(b => b.toString(2).padStart(8, '0')).join(' '); }
+function binDecode(text) {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+  const bytes = new Uint8Array(parts.length);
+  parts.forEach((p, i) => { if (!/^[01]{1,8}$/.test(p)) throw new Error('not valid binary'); bytes[i] = parseInt(p, 2); });
+  return new TextDecoder().decode(bytes);
+}
+const MORSE = {A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..','0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.','.':'.-.-.-',',':'--..--','?':'..--..',"'":'.----.','!':'-.-.--','/':'-..-.','(':'-.--.',')':'-.--.-','&':'.-...',':':'---...',';':'-.-.-.','=':'-...-','+':'.-.-.','-':'-....-','_':'..--.-','"':'.-..-.','$':'...-..-','@':'.--.-.'};
+const MORSE_REV = Object.fromEntries(Object.entries(MORSE).map(([k, v]) => [v, k]));
+function morseEncode(text) { return text.toUpperCase().split('').map(ch => ch === ' ' ? '/' : (MORSE[ch] || '')).filter(x => x !== '').join(' '); }
+function morseDecode(text) { return text.trim().split(/\s+/).map(tok => tok === '/' ? ' ' : (MORSE_REV[tok] || '?')).join(''); }
+
+function updateKeyField() {
+  const cipher = document.getElementById('ct-cipher').value;
+  const wrap = document.getElementById('ct-key-wrap');
+  const label = document.getElementById('ct-key-label');
+  const keyInput = document.getElementById('ct-key');
+  if (cipher === 'caesar') { wrap.style.display = ''; label.textContent = 'Shift (0-25)'; if (!/^\d+$/.test(keyInput.value)) keyInput.value = '13'; }
+  else if (cipher === 'vigenere') { wrap.style.display = ''; label.textContent = 'Key (letters)'; if (/^\d+$/.test(keyInput.value)) keyInput.value = 'key'; }
+  else { wrap.style.display = 'none'; }
+}
+function convert() {
+  const cipher = document.getElementById('ct-cipher').value;
+  const mode = document.getElementById('ct-mode').value;
+  const key = document.getElementById('ct-key').value;
+  const input = document.getElementById('ct-input').value;
+  const out = document.getElementById('ct-output');
+  const err = document.getElementById('ct-error');
+  err.classList.remove('show');
+  try {
+    const decode = mode === 'decode';
+    let result;
+    if (cipher === 'caesar') {
+      const shift = parseInt(key, 10) || 0;
+      result = caesarShift(input, decode ? -shift : shift);
+    } else if (cipher === 'vigenere') {
+      result = vigenere(input, key, decode);
+    } else if (cipher === 'base64') {
+      result = decode ? new TextDecoder().decode(base64ToBytes(input.trim())) : bytesToBase64(new TextEncoder().encode(input));
+    } else if (cipher === 'hex') {
+      result = decode ? hexDecode(input) : hexEncode(input);
+    } else if (cipher === 'binary') {
+      result = decode ? binDecode(input) : binEncode(input);
+    } else if (cipher === 'morse') {
+      result = decode ? morseDecode(input) : morseEncode(input);
+    }
+    out.textContent = result;
+  } catch (e) {
+    err.textContent = 'Could not convert: ' + e.message;
+    err.classList.add('show');
+    out.textContent = '';
+  }
+}
+document.getElementById('ct-cipher').addEventListener('change', () => { updateKeyField(); convert(); });
+['ct-mode', 'ct-key', 'ct-input'].forEach(id => document.getElementById(id).addEventListener('input', convert));
+updateKeyField();
+convert();
+
+function bruteForce() {
+  const input = document.getElementById('ct-bf-input').value;
+  const body = document.getElementById('ct-bf-body');
+  body.innerHTML = '';
+  for (let shift = 0; shift < 26; shift++) {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = shift; td1.style.color = 'var(--text-dim)'; td1.style.width = '32px';
+    const td2 = document.createElement('td'); td2.textContent = caesarShift(input, -shift); td2.className = 'mono';
+    tr.appendChild(td1); tr.appendChild(td2);
+    body.appendChild(tr);
+  }
+}
+document.getElementById('ct-bf-input').addEventListener('input', bruteForce);
+bruteForce();
+
+</script>
+</body>
+</html>
